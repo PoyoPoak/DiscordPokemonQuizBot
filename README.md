@@ -1,6 +1,10 @@
 # Discord Pokémon Quiz Bot
 
-A Discord bot that lets users play a game to name all 151 original Pokémon within a 15-minute time limit.
+A Discord bot that lets users play a game to name all 151 original Pokémon within a 15-minute time limit. 
+
+My friends and I on Discord were watching one of us play the single player version of this game online (https://www.sporcle.com/games/g/pokemon). Being we wanted to play it together, I made this game in 30 minutes for my friends at 2AM because I'm unfortunately unemployed and have all the time in the world. Being it was late, I figured I didn't have the time to develop a frontend or deploy it. Being the nature of the game was text based, I decided to simply utilize Discord's API to play the game in chat by creating a bot for it.
+
+This was made using a highly detailed and meticulusly structured prompt then debugged by vibe coding.
 
 ## Features
 
