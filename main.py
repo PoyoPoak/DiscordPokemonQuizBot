@@ -7,6 +7,7 @@ import asyncio
 import time
 import re
 from pokemon_data import ORIGINAL_POKEMON
+from collections import defaultdict
 
 load_dotenv()
 token = os.getenv('DISCORD_TOKEN')
@@ -25,6 +26,20 @@ active_games = {}
 GRID_SECTIONS = 4  # Number of messages to split the grid into
 
 secret_role = "Gamer"
+
+# Reaction + delete delay helper for consistent UX
+REACT_DELETE_DELAY = 1.1
+
+async def react_then_delete(message, emoji: str, delay: float = REACT_DELETE_DELAY):
+    try:
+        await message.add_reaction(emoji)
+    except Exception as e:
+        print(f"Failed to add reaction {emoji}: {e}")
+    await asyncio.sleep(max(1.0, delay))
+    try:
+        await message.delete()
+    except Exception as e:
+        print(f"Failed to delete message after reaction: {e}")
 
 @bot.event
 async def on_ready():
@@ -63,71 +78,53 @@ async def on_message(message):
                 
             print(f"Received guess: '{guess}' from {message.author.name}")
             
-            # Check if this is a valid remaining pokemon
-            match_found = False
-            for pos, name in list(game_data["remaining_pokemon"].items()):
-                if clean_pokemon_name(name) == guess:
-                    # Found a match!
-                    match_found = True
-                    print(f"Match found! {guess} = {name}")
-                    game_data["guessed"][pos] = name
-                    del game_data["remaining_pokemon"][pos]
-                    
-                    # Update the display immediately
-                    time_left = game_data["end_time"] - time.time()
-                    time_str = format_time(time_left)
-                    total_guessed = len(game_data["guessed"])
-                    
-                    # Update header with new count and time
-                    header = generate_grid_header(total_guessed, time_str)
-                    await game_data["header_message"].edit(content=f"```\n{header}\n```")
-                    
-                    # Determine which section of the grid needs to be updated
-                    pokemon_per_section = (151 + GRID_SECTIONS - 1) // GRID_SECTIONS
-                    section_index = (pos - 1) // pokemon_per_section
-                    
-                    # Only update the section that changed
-                    if section_index < len(game_data["grid_messages"]):
-                        grid_sections = generate_grid_sections(game_data["guessed"])
-                        try:
-                            await game_data["grid_messages"][section_index].edit(
-                                content=f"```\n{grid_sections[section_index]}\n```"
-                            )
-                        except discord.HTTPException as e:
-                            print(f"Error updating grid section {section_index+1}: {str(e)}")
-                            simplified = f"Grid segment - Contains guessed Pokémon"
-                            await game_data["grid_messages"][section_index].edit(
-                                content=f"```\n{simplified}\n```"
-                            )
-                    
-                    # Delete the message to keep chat clean
+            # Optimized guess handling
+            # Duplicate guess?
+            if guess in game_data.get("guessed_clean", set()):
+                print(f"Duplicate guess '{guess}' from {message.author.name}")
+                await react_then_delete(message, '✅')
+                return
+
+            # Lookup cleaned guess
+            positions = game_data.get("clean_to_positions", {}).get(guess)
+            target_pos = None
+            if positions:
+                for p in positions:
+                    if p in game_data["remaining_pokemon"]:
+                        target_pos = p
+                        break
+            if target_pos is not None:
+                name = game_data["remaining_pokemon"][target_pos]
+                print(f"Match found! {guess} = {name}")
+                game_data["guessed"][target_pos] = name
+                game_data.setdefault("guessed_clean", set()).add(guess)
+                del game_data["remaining_pokemon"][target_pos]
+                # Update header & section
+                time_left = game_data["end_time"] - time.time()
+                time_str = format_time(time_left)
+                total_guessed = len(game_data["guessed"])
+                header = generate_grid_header(total_guessed, time_str)
+                await game_data["header_message"].edit(content=f"```\n{header}\n```")
+                pokemon_per_section = (151 + GRID_SECTIONS - 1) // GRID_SECTIONS
+                section_index = (target_pos - 1) // pokemon_per_section
+                if section_index < len(game_data["grid_messages"]):
+                    grid_sections = generate_grid_sections(game_data["guessed"])
                     try:
-                        await message.delete()
-                    except Exception as e:
-                        print(f"Could not delete message: {str(e)}")
-                    
-                    # Check if all Pokemon have been guessed
-                    if len(game_data["guessed"]) == 151:
-                        await message.channel.send("Congratulations! You've named all 151 original Pokémon!")
-                        await end_game(message.channel)
-                    
-                    # We found a match, no need to check other Pokemon
-                    break
-            
-            # If no match was found and it's not an empty guess
-            if not match_found and guess:
-                print(f"Incorrect guess: '{guess}' from {message.author.name}")
+                        await game_data["grid_messages"][section_index].edit(content=f"```\n{grid_sections[section_index]}\n```")
+                    except discord.HTTPException as e:
+                        print(f"Error updating grid section {section_index+1}: {e}")
+                        simplified = "Grid segment - Contains guessed Pokémon"
+                        await game_data["grid_messages"][section_index].edit(content=f"```\n{simplified}\n```")
                 try:
-                    # React with an X emoji
-                    await message.add_reaction('❌')
-                    
-                    # Wait 1 second before deleting
-                    await asyncio.sleep(1)
-                    
-                    # Delete the incorrect message
                     await message.delete()
                 except Exception as e:
-                    print(f"Error handling incorrect guess: {str(e)}")
+                    print(f"Could not delete message: {e}")
+                if len(game_data["guessed"]) == 151:
+                    await message.channel.send("Congratulations! You've named all 151 original Pokémon!")
+                    await end_game(message.channel)
+            else:
+                print(f"Incorrect guess: '{guess}' from {message.author.name}")
+                await react_then_delete(message, '❌')
         
         if "shit" in message.content.lower():
             await message.delete()
@@ -350,11 +347,17 @@ async def play(ctx):
             return
             
         # Initialize game state
+        remaining_pokemon = {i+1: name for i, name in enumerate(ORIGINAL_POKEMON)}
+        clean_to_positions = defaultdict(list)
+        for pos, name in remaining_pokemon.items():
+            clean_to_positions[clean_pokemon_name(name)].append(pos)
         game_data = {
-            "guessed": {},  # Position -> Pokemon name mapping
-            "remaining_pokemon": {i+1: name for i, name in enumerate(ORIGINAL_POKEMON)},
-            "header_message": None,  # For the count and timer
-            "grid_messages": [],  # List to hold grid section messages
+            "guessed": {},
+            "guessed_clean": set(),
+            "remaining_pokemon": remaining_pokemon,
+            "clean_to_positions": clean_to_positions,
+            "header_message": None,
+            "grid_messages": [],
             "is_running": True,
             "start_time": time.time(),
             "end_time": time.time() + 15 * 60,  # 15 minutes
