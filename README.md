@@ -1,48 +1,157 @@
-# Discord Pokémon Quiz Bot
+# Flask-App
+My personal template for creating for flask web application monorepos. Includes backend and frontend frameworks.
 
-A Discord bot that lets users play a game to name all 151 original Pokémon within a 15-minute time limit. 
+**OPERATING SYSTEMS:** Much of these instructions were done in windows. That said, please let me know if there's any discrepancies setting up for another operating system.
 
-My friends and I on Discord were watching one of us play the single player version of this game online (https://www.sporcle.com/games/g/pokemon). Being we wanted to play it together, I made this game in 30 minutes for my friends at 2AM because I'm unfortunately unemployed and have all the time in the world. Being it was late, I figured I didn't have the time to develop a frontend or deploy it. Being the nature of the game was text based, I decided to simply utilize Discord's API to play the game in chat by creating a bot for it.
+**IMPORTANT**:For the setup below, everything was done via a bash terminal.
 
-This was made using a highly detailed and meticulusly structured prompt then debugged by vibe coding.
 
-## Features
+<br/>
 
-- Start a game with the command `!play`
-- Users have 15 minutes to guess all 151 original Pokémon
-- Real-time updating grid shows progress
-- Messages with correct guesses are automatically deleted to keep chat clean
-- Answer key displayed at the end of the game
 
-## Setup
+## Development Stack
 
-1. Clone this repository
-2. Create a `.env` file with your Discord bot token:
-   ```
-   DISCORD_TOKEN=your_token_here
-   ```
-3. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
-4. Run the bot:
-   ```
-   python main.py
-   ```
+**Design & Planning**
+- INSERT LINKS TO DOCUMENTATION
 
-## Commands
+**Prerequisites**
+- [Git Bash](https://git-scm.com/downloads)
+- [Python 3.12.8](python.org/downloads/release/python-3128)
+- [Node v20.12.2](nodejs.org/en/blog/release/v20.12.2)
+- [Backend .env Download (n/a)]()
+- [Frontend .env Download (n/a)]()
 
-- `!play` - Start a new Pokémon guessing game in the current channel
-- `!hello` - Get a greeting from the bot
-- `!assign` - Assign yourself to the "Gamer" role
-- `!remove` - Remove yourself from the "Gamer" role
-- `!dm [message]` - Have the bot DM you a message
-- `!reply` - Get a reply to your message
-- `!poll [question]` - Create a poll with a question
 
-## How to Play
+<br/>
 
-1. Type `!play` in a text channel to start the game
-2. Type the names of the original 151 Pokémon in the chat
-3. The bot will update the grid with correct guesses
-4. Try to name all Pokémon within the 15-minute time limit
+
+## Python Backend Setup
+For backend development, we'll be using the Flask Python framework. To set that up along with everything else we'll need, follow the instructions below. ENSURE YOUR IDE IS ON PYTHON 3.12.8.
+
+CD into the backend folder and setup the environment by executing the following.
+```bash
+cd ./backend
+python -m venv "./venv"
+```
+At this point, your environment should be setup. This is the environment where everything should be ran to ensure consistancy and isolation. When you need to activate your virtual environment, execute the following.
+```shell
+# For Windows systems
+source venv/Scripts/activate
+```
+or if on MACOS or other Unix systems...
+```bash
+# For MACOS/Unix systems
+source venv/bin/activate
+```
+
+For the first time setup, or when new packages are added to the `requirements.txt` file, use the following command to install all required Python packages.
+```bash
+pip install -r requirements.txt
+```
+
+Once all packages are installed, you should be able to start up the backend server via the following command.
+```bash
+python ./app.py
+```
+
+
+<br/>
+
+
+
+## Frontend Setup
+For the frontend, we'll Next.js for that we'll need Node. To set that up along with everything else we'll need, follow the instructions below.
+
+Once you have Node.js installed, run the following commands to install the required packages.
+```bash
+cd ./frontend
+npm install
+```
+Once installed, you should be able to start the development server with the following.
+```bash
+npm run dev
+```
+
+View the webpage at [http://localhost:3000](http://localhost:3000)
+
+Node, this project uses next/font to automatically optimize and load Geist, a new font family for Vercel.
+
+
+
+<br/>
+
+
+
+## Project Compilation
+Compile the entire project (frontend build + backend executable) using the existing PyInstaller spec.
+
+**Build Frontend**
+Build the frontend (Vite outputs to `frontend/dist`).
+```bash
+cd frontend
+npm ci
+npm run build
+```
+Install backend deps and PyInstaller (first time only).
+```bash
+cd ../backend
+pip install -r requirements.txt
+pip install pyinstaller
+```
+
+**Build .exe**
+Using the provided spec file (ensures frontend `dist` and OR-Tools libs are bundled correctly), run the following.
+```bash
+pyinstaller --clean --noconfirm PROJECT_NAME.spec
+```
+Run the generated executable:
+```bash
+./dist/PROJECT_NAME/PROJECT_NAME.exe
+```
+The app will start Flask on `http://localhost:8080` and open your browser.
+
+
+
+<br/>
+
+
+
+## Regenerating / updating the spec (only if you need to)
+If you add entry points or want a fresh spec:
+```bash
+pyi-makespec app.py --name PROJECT_NAME --add-data "../frontend/dist;frontend/dist"
+```
+Then edit the generated `.spec` similarly to the committed one (adding OR-Tools `.libs` and the frontend Tree) and rebuild with the `pyinstaller --clean --noconfirm PROJECT_NAME.spec` command above.
+
+
+
+<br/>
+
+
+
+## Cleaning the  Build Slate
+Remove build artifacts if you encounter issues:
+```bash
+rm -rf frontend/dist
+rm -rf backend/build backend/dist backend/__pycache__
+```
+(Keep `PROJECT_NAME.spec` unless you intentionally want to regenerate it.)
+
+
+
+<br/>
+<br/>
+
+
+
+# Project Tech Stack
+
+**Frontend Stack**
+- NextJS
+- Tailwind CSS
+- ...more...
+
+**Backend Stack**
+- Python 3.12.8
+- Flask
+- ...more...
